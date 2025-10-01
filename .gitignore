@@ -26,3 +26,5 @@ Thumbs.db
 
 data_raw/*
 !data_raw/.gitkeep
+
+256_all/*

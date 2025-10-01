@@ -1,0 +1,11 @@
+numpy
+pandas
+librosa
+matplotlib
+seaborn
+scikit-learn
+ipython
+pillow
+opencv-python
+keras
+tensorflow==2.17.0
