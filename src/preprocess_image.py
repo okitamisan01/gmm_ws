@@ -1,4 +1,3 @@
-
 import os
 import random
 import numpy as np
@@ -42,26 +41,26 @@ def resize_image_array(img_array, image_size=(299, 299)):
 
 # save image data in npz
 def save_np_256_oc_data(x, data_type="train"):
-    data_dir = "256_" + data_type
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir)
+    # 保存先を data_processed/image に統一
+    processed_dir = os.path.join("data_processed", "image")
+    if not os.path.exists(processed_dir):
+        os.makedirs(processed_dir)
     for _,c in enumerate(x):
         for _,f in enumerate(c):
             if not f.lower().endswith((".jpg", ".jpeg", ".png")):
                 print("スキップ:", f)
                 continue
             image_name = os.path.splitext(os.path.basename(f))[0]
-            image_path = os.path.join(data_dir, image_name)
-            print("image_path:", image_path)
-            print("image_name:", image_name)
-            if not os.path.exists(image_path):
+            processed_path = os.path.join(processed_dir, image_name + ".npz")
+            print("processed_path:", processed_path)
+            if not os.path.exists(processed_path):
                 y = f.split("/")[2].split(".")[0]
                 img = Image.open(os.path.join(f))
                 img = np.asarray(img)
                 if len(img.shape) == 2:
                     img = convert2dgray_to_3dgray(img)
                 img = resize_image_array(img, image_size=(299, 299))
-                np.savez(image_path, img=img, y=y)
+                np.savez(processed_path, img=img, y=y)
 
 save_np_256_oc_data(oc256_files,  data_type="all")
 

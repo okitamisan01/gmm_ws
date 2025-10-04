@@ -9,3 +9,4 @@ pillow
 opencv-python
 keras
 tensorflow==2.17.0
+requests

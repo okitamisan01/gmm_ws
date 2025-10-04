@@ -27,4 +27,5 @@ Thumbs.db
 data_raw/*
 !data_raw/.gitkeep
 
-256_all/*
+data_processed/*
+!data_processed/.gitkeep
