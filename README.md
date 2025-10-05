@@ -28,7 +28,21 @@ https://github.com/karolpiczak/ESC-50
 メタデータにはファイル名とクラス（0-49）、クラス名（上記テーブル参照）が入っています。
 音声データ（.wav）はlibrosaというライブラリでロードすることでnumpy.arrayとして扱えるようになります。
 
-テキストはWikipedia（日本語）から適当にコピペして集めてきます
+テキストはWikipedia（日本語）から適当にコピペして集めてきます、とおもったけど想像以上にだめだったのでLLMにおまかせ
+
+初期化（未実施なら）
+python3 preprocess_text.py --init
+生成（Geminiを明示）
+export GEMINI_API_KEY=AIzaSyBetTy3ustseM_-gbaR0zX3HHBzve_xWXM
+curl -s "https://generativelanguage.googleapis.com/v1/models?key=${GEMINI_API_KEY}" | jq '.'
+
+python3 src/preprocess_text.py --auto-llm --llm-samples 5 \
+  --chunk-mode time --chunk-seconds 30 --reading-cpm 500
+読字速度（--reading-cpm）は好みに合わせて調整（450〜600あたり）。
+句点優先で切るので、文の途中で切れにくいです。
+
+JSON作成
+python3 preprocess_text.py --build
 
 
 ######################
@@ -154,6 +168,8 @@ Caltech256、ESC-50、Wikipediaはまったく違う目的で作られている�
 ここでオリジナリティのため、少し検証をします。
 普通にマルチモーダルなデータを作るのではつまらないので、今回は一部のモードが存在しないデータを作ります。
 
+フルデータ：python combine_dataset_full.py 
+欠損あり：python combine_dataset_withlack.py 
 
 ## データの前処理
 
