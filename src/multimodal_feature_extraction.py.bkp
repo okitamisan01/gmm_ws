@@ -1,0 +1,92 @@
+import os
+import random
+import pandas as pd
+import numpy as np
+import librosa
+from tensorflow.keras import utils
+
+FULL = True  # True: full data, False: with lack data
+if FULL:
+    dataset_train = pd.read_csv(os.path.join("..","dataset_full","dataset_train.csv"), index_col=0)  
+    dataset_test = pd.read_csv(os.path.join("..","dataset_full","dataset_test.csv"), index_col=0)
+else:
+    dataset_train = pd.read_csv(os.path.join("..","dataset_missing","dataset_train.csv"), index_col=0)  
+    dataset_test = pd.read_csv(os.path.join("..","dataset_missing","dataset_test.csv"), index_col=0)
+
+# IMAGES
+x_train_img_path = dataset_train["img"].values
+x_test_img_path = dataset_test["img"].values
+# load training images
+x_train_img = np.zeros((len(x_train_img_path), 299,299,3))
+for i,p in enumerate(x_train_img_path):
+    if p is not None:
+        x_train_img[i] = np.load(p)["img"]
+# no normalize for training images, since they will be augmented and normalized during training
+
+# load test images
+x_test_img = np.zeros((len(x_test_img_path), 299,299,3))
+for i,p in enumerate(x_test_img_path):
+    if p is not None:
+        x_test_img[i] = np.load(p)["img"]
+# normalize
+x_test_img = x_test_img.astype('float32')
+x_test_img /= 255
+
+# SOUNDS
+# change wave data to mel-stft
+def calculate_melsp(x, n_fft=1024, hop_length=128):
+    stft = np.abs(librosa.stft(x, n_fft=n_fft, hop_length=hop_length))**2
+    log_stft = librosa.power_to_db(stft)
+    melsp = librosa.feature.melspectrogram(S=log_stft,n_mels=128)
+    return melsp
+
+# load a wave data
+def load_wave_data(filepath):
+    x, _ = librosa.load(filepath, sr=44100)
+    return x,_
+
+x_train_snd_path = dataset_train["snd"].values
+x_test_snd_path = dataset_test["snd"].values
+
+freq = 128
+time = 1723
+
+# load test sounds
+x_test_snd = np.zeros((len(x_test_snd_path), freq,time))
+for i,p in enumerate(x_test_snd_path):
+    if p is not None:
+        s,_ = load_wave_data(p)
+        x_test_snd[i] = calculate_melsp(s)
+    
+x_test_snd = x_test_snd.reshape(len(x_test_snd), freq,time, 1)
+
+# TEXTS
+# convert Japanese characters to unicode
+# delete a character randomly with del_rate 
+def convert_text_to_unicode(s,del_rate=0.001):
+    if s == 0:
+        return [0]
+    else:
+        return [ord(x) for  x in str(s).strip() if random.random() > del_rate]
+
+def reshape_text(s, max_length=200,del_rate=0.001):
+    s_ = convert_text_to_unicode(s,del_rate=del_rate)
+    s_ = s_[:max_length]
+    if len(s_) < max_length:
+        s_ += ([0] * (max_length - len(s_)))
+    return s_
+
+txt_length = 200
+
+# load texts
+x_train_text = dataset_train["text"].values
+x_test_text = np.array([reshape_text(t, max_length=txt_length,del_rate=0) for t in dataset_test["text"].values])
+
+# TARGET LABELS
+y_train = dataset_train["target"].values
+y_test = dataset_test["target"].values
+
+y_train = utils.to_categorical(y_train)
+y_test = utils.to_categorical(y_test)
+
+# ① CNNなどで特徴抽出

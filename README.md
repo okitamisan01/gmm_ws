@@ -172,8 +172,30 @@ Caltech256、ESC-50、Wikipediaはまったく違う目的で作られている�
 欠損あり：python combine_dataset_withlack.py 
 
 ## データの前処理
-
+multimodal_feature_extraction.py
 
 ## モデルを定義する
 ## 学習する
 ## 評価する
+
+
+すること
+- preprocess_txt
+
+python3 src/preprocess_text.py --init
+
+export GEMINI_API_KEY="AIzaSyBetTy3ustseM_-gbaR0zX3HHBzve_xWXM"
+export GEMINI_API_KEY="AIzaSyCodUkKhybTqMOdBdfw1tyGXiwlvv7F5Dk"
+
+python3 src/preprocess_text.py --auto-llm --llm-samples 5 \
+  --chunk-mode time --chunk-seconds 60 --reading-cpm 500
+
+- preprocess_txt --build
+python3 src/preprocess_text.py --build
+
+- combine 2つ
+
+フルデータ：python combine_dataset_full.py 
+欠損あり：python combine_dataset_withlack.py 
+
+- multimodal完成＋動かす

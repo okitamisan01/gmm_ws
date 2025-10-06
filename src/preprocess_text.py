@@ -21,12 +21,12 @@ HEADERS = {
 # Chosen category mapping (Caltech256 class ID -> ESC-50 target ID)
 # Keep in sync with preprocessing/making_category.py selection
 chosen_oc_esc = {
-    58: 30,
-    102: 40,
-    239: 35,
-    245: 16,
-    113: 14,
-    170: 10,
+    # 58: 30,
+    # 102: 40,
+    # 239: 35,
+    # 245: 16,
+    # 113: 14,
+    # 170: 10,
     89: 1,
     73: 48,
     251: 47,
