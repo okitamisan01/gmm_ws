@@ -1,6 +1,7 @@
 numpy
 pandas
 librosa
+soundfile
 matplotlib
 seaborn
 scikit-learn

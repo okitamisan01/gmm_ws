@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Cluster Gallery</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --bg: #0b0d10;
+  --card: #14181d;
+  --fg: #e9eef5;
+  --muted: #9aa7b4;
+  --accent: #4da3ff;
+  --border: #21262d;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 24px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+  background: var(--bg); color: var(--fg);
+}
+h1 { margin: 0 0 16px; font-size: 20px; font-weight: 600; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.25);
+}
+.card .tag {
+  font-size: 12px; color: var(--muted);
+}
+.card .img {
+  width: 100%; aspect-ratio: 1/1; 
+  background: #0f1318; border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 12px; overflow: hidden;
+}
+.card .img img { width: 100%; height: 100%; object-fit: contain; }
+.card .noimg { color: var(--muted); font-size: 12px; }
+.card .text { font-size: 14px; line-height: 1.5; }
+.card .muted { color: var(--muted); }
+.card .audio audio { width: 100%; }
+footer { margin-top: 16px; color: var(--muted); font-size: 12px; }
+.note { color: var(--muted); font-size: 13px; margin: 8px 0 16px; }
+</style>
+</head>
+<body>
+<h1>Cluster Gallery</h1>
+<div class="note">クリックで音声を再生できます。NPZのメルしか無い場合は近似再生（Griffin–Lim）です。</div>
+<div class="grid">
+
+        <div class="card">
+          <div class="tag">cluster 0 · idx 67</div>
+          <div class="img"><img src="gallery_assets/img_c0_i67.png" alt="image"></div>
+          <div class="text">飛行機（airplanes）とは、空気より重く、固定された翼によって揚力を発生させ、推進装置によって前進し、空中を飛行する航空機の一種である。 その基本的な構造は、揚力を生み出す主翼、推進力を得るためのエンジン、機体の姿勢や方向を制御する尾翼や操縦翼面、そして離着陸を行うための降着装置から構成される。 エンジンにはプロペラ式やジェット式があり、燃料を燃焼させて得られる推力によって機体を前進させる。 主翼の特殊な形状（翼型）により、翼の上下を流れる空気の速度に差が生じ、ベルヌーイの定理に基づいて上向きの力、すなわち揚力が発生する。 この揚力が機体の重力を上回り、かつエンジンの推力が空気抵抗（抗力）を上回ることで、飛行機は空中に浮上し、前進することができる。 飛行機は、その高い速度、広い航続距離、そして大量の物資や人員を輸送できる能力から、現代社会において多岐にわたる用途で利用されている。 主な用途としては、世界中の都市を結ぶ旅客輸送や国際的な貨物輸送が挙げられる。</div>
+          <div class="audio"><audio controls src="gallery_assets/aud_c0_i67.wav"></audio></div>
+        </div>
+        
+        <div class="card">
+          <div class="tag">cluster 1 · idx 82</div>
+          <div class="img"><img src="gallery_assets/img_c1_i82.png" alt="image"></div>
+          <div class="text">生態系においては、昆虫などの害虫を捕食する一方で、鳥類やヘビなどの捕食動物の餌となる重要な役割を担っており、その生息状況は環境の健全性を示す指標の一つとしても注目されています。</div>
+          <div class="audio"><audio controls src="gallery_assets/aud_c1_i82.wav"></audio></div>
+        </div>
+        
+        <div class="card">
+          <div class="tag">cluster 2 · idx 30</div>
+          <div class="img"><img src="gallery_assets/img_c2_i30.png" alt="image"></div>
+          <div class="text">風車の種類には、回転軸が地面に対して水平な水平軸型と、垂直な垂直軸型があり、それぞれ風向への追従性や設置場所の制約といった特性が異なります。 持続可能な再生可能エネルギー源の一つとして、地球温暖化対策やエネルギー自給率の向上に貢献する重要な技術として、その開発と導入が進められています。</div>
+          <div class="audio"><audio controls src="gallery_assets/aud_c2_i30.wav"></audio></div>
+        </div>
+        
+        <div class="card">
+          <div class="tag">cluster 3 · idx 11</div>
+          <div class="img"><img src="gallery_assets/img_c3_i11.png" alt="image"></div>
+          <div class="text">その飛行原理は、エンジンによって駆動されるメインローターが回転することで揚力を発生させ、同時に発生する反トルクを打ち消すために、通常は機体後部に備えられたテールローターが推力を生み出すことで姿勢を制御します。 この独自の飛行能力により、ヘリコプターは滑走路を必要とせず、狭い場所や不整地でも運用できるため、山間部や離島、都市部など、アクセスが困難な場所への移動手段として非常に有用です。</div>
+          <div class="audio"><audio controls src="gallery_assets/aud_c3_i11.wav"></audio></div>
+        </div>
+        
+        <div class="card">
+          <div class="tag">cluster 4 · idx 43</div>
+          <div class="img"><img src="gallery_assets/img_c4_i43.png" alt="image"></div>
+          <div class="text">一般的に見られるのは主虹（一次の虹）で、水滴内で光が1回反射することで生じ、外側が赤色、内側が紫色となる。 主虹は最も明るく鮮明に観察される。 まれに、主虹の外側に副虹（二次の虹）が見られることがある。 副虹は水滴内で光が2回反射することで生じ、色の並びが主虹とは逆で、外側が紫色、内側が赤色となり、主虹よりも淡い色合いであることが多い。 虹は実際には完全な円形であるが、通常は地平線や観察者の位置によってその一部が弧として見える。 飛行機など高い場所からは円全体が観察されることもある。</div>
+          <div class="audio"><audio controls src="gallery_assets/aud_c4_i43.wav"></audio></div>
+        </div>
+        
+        <div class="card">
+          <div class="tag">cluster 5 · idx 38</div>
+          <div class="img"><img src="gallery_assets/img_c5_i38.png" alt="image"></div>
+          <div class="text">これは、毎秒数十回から百回以上にも及ぶ高速な羽ばたきによって可能となり、その羽音がハチの羽音に似ていることからその名がつけられました。 この独特の飛行技術により、花に留まることなく蜜を吸うことができ、その際に花粉を体につけて別の花へと運ぶことで、植物の受粉に重要な役割を果たす送粉者としての側面も持ちます。 非常に高い代謝率を持つため、常にエネルギーを補給する必要があり、体重の半分以上の蜜を一日で摂取することもあります。</div>
+          <div class="audio"><audio controls src="gallery_assets/aud_c5_i38.wav"></audio></div>
+        </div>
+        
+</div>
+<footer>Generated in /home/su-laptop-02-okitani/gmm_ws/artifacts</footer>
+</body>
+</html>

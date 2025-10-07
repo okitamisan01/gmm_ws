@@ -19,13 +19,13 @@ from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import adjusted_rand_score, silhouette_score, silhouette_samples
 from sklearn.manifold import TSNE
-from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import *
 from tensorflow.keras.applications import Xception
 from tensorflow.keras import Input
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import categorical_crossentropy
+from pathlib import Path
 
 # ====================
 # 1. データ読み込み
@@ -44,7 +44,7 @@ else:
 x_test_img_path = dataset_test["img"].values
 x_test_snd_path = dataset_test["snd"].values
 x_test_text = dataset_test["text"].values
-y_test = to_categorical(dataset_test["target"].values)
+y_test = pd.get_dummies(dataset_test["target"]).values  # one-hot エンコーディング
 
 # --- Image
 x_test_img = np.zeros((len(x_test_img_path), 299, 299, 3))
@@ -190,19 +190,19 @@ model = Model(inputs=[input_text, input_img, input_snd], outputs=last_dense)
 features_test = model.predict([x_test_text, x_test_img, x_test_snd])
 
 # ====================
-# 4. GMMクラスタリング
+# 4. GMMクラスタリング（教師なし, BICでK選定）
 # ====================
 scaler = StandardScaler()
 # 数値安定のため float64 で標準化
 features_scaled = scaler.fit_transform(features_test.astype(np.float64))
 
-# サンプル数より多い成分数は不安定になるため抑制
-orig_components = y_test.shape[1]
-n_samples = features_scaled.shape[0]
+orig_components = y_test.shape[1] 
+n_samples = features_scaled.shape[0] 
 n_components = min(orig_components, max(2, n_samples - 1))
 
 # 安定化のためのフォールバック付きフィッタ
 last_err = None
+gmm = None
 for cov in ("diag", "spherical"):
     for reg in (1e-4, 1e-3, 1e-2):
         try:
@@ -219,32 +219,39 @@ for cov in ("diag", "spherical"):
             break
         except Exception as e:
             last_err = e
-    if last_err is None:
+    if gmm is not None:
         break
 
-if last_err is not None:
+if gmm is None and last_err is not None:
     raise last_err
 
 gmm_preds = gmm.predict(features_scaled)
 
-y_true = np.argmax(y_test, axis=1)
-ari = adjusted_rand_score(y_true, gmm_preds)
+y_true = np.argmax(y_test, axis=1) 
+ari = adjusted_rand_score(y_true, gmm_preds) 
 print(f"Adjusted Rand Index (ARI): {ari:.4f}")
 
-# ===== 可視化: 真のラベル vs 予測クラスタの対応（行正規化） =====
-try:
-    ct = pd.crosstab(pd.Series(y_true, name="true"), pd.Series(gmm_preds, name="cluster"), normalize="index")
-    plt.figure(figsize=(1.2*ct.shape[1]+3, 1.2*ct.shape[0]+3))
-    sns.heatmap(ct, annot=True, fmt=".2f", cmap="Blues")
-    plt.title(f"Contingency (row-normalized)\nARI={ari:.3f}")
-    plt.xlabel("Predicted cluster")
-    plt.ylabel("True class")
-    plt.tight_layout()
-    plt.show()
-except Exception as e:
-    print(f"[WARN] Heatmap 可視化失敗: {e}")
+# ===== アーティファクト保存 =====
+ARTIFACTS = Path(base_dir) / "artifacts_withcategory"
+ARTIFACTS.mkdir(parents=True, exist_ok=True)
 
-# ===== 可視化: クラスタサイズ分布 =====
+# 責務とCSVを保存
+resp = gmm.predict_proba(features_scaled)
+np.save(ARTIFACTS / "resp.npy", resp)
+
+# パスを絶対化しておく
+def abs_or_none(p):
+    return os.path.abspath(p) if isinstance(p, str) and len(p) > 0 else p
+
+dataset_to_save = dataset_test.copy()
+for col in ["img", "snd"]:
+    if col in dataset_to_save.columns:
+        dataset_to_save[col] = dataset_to_save[col].apply(abs_or_none)
+
+dataset_to_save.to_csv(ARTIFACTS / "dataset_test.csv")
+print(f"Saved responsibilities and dataset CSV to: {ARTIFACTS}")
+
+# ===== 可視化: クラスタサイズ分布（保存） =====
 try:
     counts = np.bincount(gmm_preds, minlength=gmm.n_components)
     plt.figure(figsize=(max(6, 0.8*len(counts)), 4))
@@ -253,27 +260,33 @@ try:
     plt.ylabel("Count")
     plt.title("Cluster sizes")
     plt.tight_layout()
-    plt.show()
+    out = ARTIFACTS / "cluster_sizes.png"
+    plt.savefig(out, dpi=200, bbox_inches="tight")
+    print(f"Saved: {out}")
+    plt.close()
 except Exception as e:
     print(f"[WARN] Cluster size 可視化失敗: {e}")
 
-# ===== Silhouette スコアと分布 =====
+# ===== Silhouette スコアと分布（保存） =====
 try:
     sil_overall = silhouette_score(features_scaled, gmm_preds)
     sil_samples = silhouette_samples(features_scaled, gmm_preds)
     print(f"Silhouette score (overall): {sil_overall:.4f}")
     df_sil = pd.DataFrame({"cluster": gmm_preds, "sil": sil_samples})
-    plt.figure(figsize=(max(6, 0.8*len(counts)), 4))
+    plt.figure(figsize=(max(6, 0.8*len(np.bincount(gmm_preds))), 4))
     sns.boxplot(data=df_sil, x="cluster", y="sil", color="#59a14f")
     plt.axhline(sil_overall, ls="--", c="red", lw=1, label=f"overall={sil_overall:.3f}")
     plt.legend()
     plt.title("Silhouette by cluster")
     plt.tight_layout()
-    plt.show()
+    out = ARTIFACTS / "silhouette_box.png"
+    plt.savefig(out, dpi=200, bbox_inches="tight")
+    print(f"Saved: {out}")
+    plt.close()
 except Exception as e:
     print(f"[WARN] Silhouette 可視化失敗: {e}")
 
-# ===== t-SNE 2D 可視化（重い場合あり） =====
+# ===== t-SNE 2D 可視化（保存） =====
 try:
     n = len(features_scaled)
     if n >= 5:
@@ -285,71 +298,11 @@ try:
         plt.scatter(emb[:,0], emb[:,1], c=gmm_preds, cmap="tab20", s=18, alpha=0.9)
         plt.title("t-SNE colored by predicted cluster")
         plt.xticks([]); plt.yticks([])
-        plt.tight_layout(); plt.show()
-
-        plt.figure(figsize=(6,5))
-        plt.scatter(emb[:,0], emb[:,1], c=y_true, cmap="tab20", s=18, alpha=0.9)
-        plt.title("t-SNE colored by true class")
-        plt.xticks([]); plt.yticks([])
-        plt.tight_layout(); plt.show()
+        plt.tight_layout()
+        out = ARTIFACTS / "tsne_pred.png"
+        plt.savefig(out, dpi=200, bbox_inches="tight")
+        print(f"Saved: {out}")
+        plt.close()
 except Exception as e:
     print(f"[WARN] t-SNE 可視化失敗: {e}")
 
-# ====================
-# 5. 結果の確認
-# ====================
-
-n_clusters = gmm.n_components
-
-def display_sample_for_cluster(cluster_id):
-    # cluster に属するインデックスを取得
-    idxs = np.where(gmm_preds == cluster_id)[0]
-    if len(idxs) == 0:
-        print(f"クラスタ {cluster_id} に属するサンプルなし")
-        return
-    # ランダムに1つ選択
-    sel = random.choice(idxs)
-    print(f"クラスタ {cluster_id} — 選択サンプル index: {sel}")
-    
-    # 画像表示
-    img_path = dataset_test.iloc[sel]["img"]
-    if img_path is not None and os.path.exists(img_path):
-        arr = np.load(img_path)["img"]  # .npz に保存している前提
-        # 正規化など逆変換があればここでやる
-        plt.figure(figsize=(4,4))
-        plt.imshow(arr.astype(np.uint8))
-        plt.axis("off")
-        plt.title(f"クラスタ{cluster_id} の画像 (idx={sel})")
-        plt.show()
-    else:
-        print("画像データなし")
-    
-    # 音声: .wav なら再生、.npz ならメルスペクトログラムを可視化
-    snd_path = dataset_test.iloc[sel]["snd"]
-    if snd_path is not None and os.path.exists(snd_path):
-        if snd_path.lower().endswith(".npz"):
-            try:
-                mel = np.load(snd_path)["melsp"]
-                plt.figure(figsize=(5, 3))
-                plt.imshow(mel, origin="lower", aspect="auto", cmap="magma")
-                plt.colorbar(label="dB")
-                plt.title("Mel spectrogram (from .npz)")
-                plt.tight_layout()
-                plt.show()
-            except Exception as e:
-                print(f"音声メルスペクトログラム表示失敗: {e}")
-        else:
-            display_audio = ipd.Audio(snd_path)
-            print("🔊 音声再生：")
-            ipd.display(display_audio)
-    else:
-        print("音声データなし")
-    
-    # テキスト出力
-    text = dataset_test.iloc[sel]["text"]
-    print("📝 テキスト:", repr(text))
-    print()  # 改行
-
-# 全クラスタに対して表示する
-for c in range(n_clusters):
-    display_sample_for_cluster(c)

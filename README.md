@@ -199,3 +199,19 @@ python3 src/preprocess_text.py --build
 欠損あり：python combine_dataset_withlack.py 
 
 - multimodal完成＋動かす
+
+# 基本（各クラスタ1件ずつ）
+python sample_concept.py --artifacts ~/gmm_ws/artifacts
+
+# 特定クラスタだけ、3件ずつ
+python sample_concept.py --artifacts ~/gmm_ws/artifacts --cluster 2 --per-cluster 3
+
+# HTMLタイトル変更
+python sample_concept.py --title "GMM Cluster Samples" 
+
+
+カテゴリ数あり：
+file:///home/su-laptop-02-okitani/gmm_ws/artifacts_withcategory/cluster_gallery.html
+
+カテゴリ数なし：
+file:///home/su-laptop-02-okitani/gmm_ws/artifacts/cluster_gallery.html
