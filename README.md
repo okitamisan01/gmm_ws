@@ -1,7 +1,7 @@
 # gmm_ws
 
 以下をクリック
-` https://htmlpreview.github.io/?https://github.com/okitamisan01/gmm_ws/blob/main/artifacts/cluster_gallery.html `
+https://htmlpreview.github.io/?https://github.com/okitamisan01/gmm_ws/blob/main/artifacts/cluster_gallery.html
 
 
 ## 説明

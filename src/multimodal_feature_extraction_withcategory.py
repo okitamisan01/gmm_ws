@@ -27,6 +27,11 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import categorical_crossentropy
 from pathlib import Path
 
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+from matplotlib.lines import Line2D
+from sklearn.decomposition import PCA
+
+
 # ====================
 # 1. データ読み込み
 # ====================
@@ -305,4 +310,86 @@ try:
         plt.close()
 except Exception as e:
     print(f"[WARN] t-SNE 可視化失敗: {e}")
+
+
+# ===== PCA 3D 可視化 + GMM楕円体（保存） =====
+try:
+    if features_scaled.shape[0] >= 5:
+        pca = PCA(n_components=3, random_state=0)
+        X3 = pca.fit_transform(features_scaled)
+        K = gmm.n_components
+        cmap = plt.cm.get_cmap('tab20', K)
+
+        fig = plt.figure(figsize=(7,6))
+        ax = fig.add_subplot(111, projection='3d')
+        sc = ax.scatter(X3[:,0], X3[:,1], X3[:,2], c=gmm_preds, cmap=cmap, s=10, alpha=0.85)
+        ax.set_title('PCA-3D with GMM ellipsoids')
+        ax.set_xlabel('PC1'); ax.set_ylabel('PC2'); ax.set_zlabel('PC3')
+        ax.grid(True, ls='--', alpha=0.3)
+
+        # ガウス楕円体を描画
+        def full_covariance(k):
+            covs = gmm.covariances_
+            cov_type = gmm.covariance_type
+            D = features_scaled.shape[1]
+            if cov_type == 'full':
+                C = covs[k]
+            elif cov_type == 'diag':
+                C = np.diag(covs[k])
+            elif cov_type == 'spherical':
+                C = np.eye(D) * covs[k]
+            elif cov_type == 'tied':
+                C = covs
+            else:
+                C = np.diag(covs[k])
+            return C
+
+        W = pca.components_[:3, :]  # (3, D)
+        m = gmm.means_  # (K, D)
+
+        # メッシュ
+        import numpy as _np
+        u = _np.linspace(0, 2*_np.pi, 36)
+        v = _np.linspace(0, _np.pi, 18)
+        su, sv = _np.meshgrid(u, v)
+        base = _np.stack([
+            _np.cos(su) * _np.sin(sv),
+            _np.sin(su) * _np.sin(sv),
+            _np.cos(sv)
+        ], axis=0)  # (3, V, U)
+
+        for k in range(K):
+            try:
+                mean3 = (m[k] - pca.mean_) @ W.T  # (3,)
+                C = full_covariance(k)
+                C3 = W @ C @ W.T  # (3,3)
+                vals, vecs = np.linalg.eigh(C3)
+                vals = np.clip(vals, 1e-12, None)
+                order = vals.argsort()[::-1]
+                vals = vals[order]; vecs = vecs[:, order]
+                # 半径（標準偏差のスケール）。見やすさ優先で 2σ
+                radii = np.sqrt(vals) * 2.0
+                # 回転行列
+                R = vecs
+                ellip = (R @ (radii[:, None, None] * base).reshape(3, -1)).reshape(3, *base.shape[1:])
+                X = ellip[0] + mean3[0]
+                Y = ellip[1] + mean3[1]
+                Z = ellip[2] + mean3[2]
+                ax.plot_surface(X, Y, Z, rstride=2, cstride=2, color=cmap(k), alpha=0.18, linewidth=0)
+            except Exception:
+                continue
+
+        # 凡例
+        handles = [Line2D([0],[0], marker='o', color='w', label=f'Cluster {i}',
+                           markerfacecolor=cmap(i), markersize=6) for i in range(K)]
+        ax.legend(handles=handles, title='Clusters', bbox_to_anchor=(1.02, 1), loc='upper left')
+
+        fig.tight_layout()
+        out3d = ARTIFACTS / 'pca3d_gmm.png'
+        fig.savefig(out3d, dpi=200, bbox_inches='tight')
+        print(f"Saved: {out3d}")
+        plt.close(fig)
+except Exception as e:
+    print(f"[WARN] PCA-3D 可視化失敗: {e}")
+
 

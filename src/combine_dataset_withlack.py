@@ -10,6 +10,22 @@ root_dir = os.path.dirname(base_dir)
 esc_np_dir = os.path.join(root_dir, "data_processed", "audio")
 oc_np_dir = os.path.join(root_dir, "data_processed", "image")
 
+# 使用済みの画像/音声は二度と使わない
+used_img_global = set()
+used_snd_global = set()
+
+def avail_unique(seq, used):
+    return [x for x in seq if x not in used]
+
+def take_unique(seq, used, k):
+    cand = avail_unique(seq, used)
+    if not cand:
+        return []
+    k = min(k, len(cand))
+    picks = random.sample(cand, k)
+    used.update(picks)
+    return picks
+
 texts_data_train = []
 img_data_train = []
 snd_data_train = []
@@ -64,88 +80,181 @@ for ok, c in chosen_kv.items():
             esc_list.append(p)
 
     txt_pool = oc_txt_dict.get(ok, [])
-    n_test = min(8, len(txt_pool), len(oc_list), len(esc_list))
+
+    # ========= Test: Full triplets（重複禁止） =========
+    avail_img = avail_unique(oc_list, used_img_global)
+    avail_snd = avail_unique(esc_list, used_snd_global)
+    n_test = min(8, len(txt_pool), len(avail_img), len(avail_snd))
     if n_test == 0:
-        print(f"[WARN] Skip class {ok} ({c}): insufficient data")
+        print(f"[WARN] Skip class {ok} ({c}): insufficient data (unique img/snd)")
         t += 1
         continue
 
-    test_text_idx = random.sample(range(len(txt_pool)), n_test)
-    test_img_idx = random.sample(range(len(oc_list)), n_test)
-    test_snd_idx = random.sample(range(len(esc_list)), n_test)
+    pick_img = take_unique(oc_list, used_img_global, n_test)
+    pick_snd = take_unique(esc_list, used_snd_global, n_test)
+    pick_txt_idx = random.sample(range(len(txt_pool)), n_test)
 
-    # Full test samples
     for i in range(n_test):
-        texts_data_test.append(txt_pool[test_text_idx[i]])
-        img_data_test.append(oc_list[test_img_idx[i]])
-        snd_data_test.append(esc_list[test_snd_idx[i]])
+        texts_data_test.append(txt_pool[pick_txt_idx[i]])
+        img_data_test.append(pick_img[i])
+        snd_data_test.append(pick_snd[i])
         target_test.append(t)
         category_test.append(c)
 
-    # One missing modality in test
-    for _ in range(8):
-        m = random.choice([0, 1, 2])
-        tt = [0] if m == 0 else [random.choice([txt_pool[i] for i in test_text_idx])]
-        it = [None] if m == 1 else [random.choice([oc_list[i] for i in test_img_idx])]
-        st = [None] if m == 2 else [random.choice([esc_list[i] for i in test_snd_idx])]
-        texts_data_test.extend(tt)
-        img_data_test.extend(it)
-        snd_data_test.extend(st)
-        target_test.append(t)
-        category_test.append(c)
+    # ========= Test: One missing =========
+    # 最大8件めやす、在庫に応じて減少
+    attempts = 0
+    made = 0
+    while made < 8 and attempts < 8*4:
+        attempts += 1
+        m = random.choice([0, 1, 2])  # 0:missing text, 1:missing img, 2:missing snd
+        if m == 0:
+            # need unique img + snd
+            ai = avail_unique(oc_list, used_img_global)
+            asn = avail_unique(esc_list, used_snd_global)
+            if ai and asn:
+                img = take_unique(oc_list, used_img_global, 1)[0]
+                snd = take_unique(esc_list, used_snd_global, 1)[0]
+                texts_data_test.append(0)
+                img_data_test.append(img)
+                snd_data_test.append(snd)
+                target_test.append(t); category_test.append(c)
+                made += 1
+        elif m == 1:
+            # need unique snd only
+            asn = avail_unique(esc_list, used_snd_global)
+            if asn:
+                txt = random.choice(txt_pool) if txt_pool else 0
+                snd = take_unique(esc_list, used_snd_global, 1)[0]
+                texts_data_test.append(txt)
+                img_data_test.append(None)
+                snd_data_test.append(snd)
+                target_test.append(t); category_test.append(c)
+                made += 1
+        else:
+            # need unique img only
+            ai = avail_unique(oc_list, used_img_global)
+            if ai:
+                txt = random.choice(txt_pool) if txt_pool else 0
+                img = take_unique(oc_list, used_img_global, 1)[0]
+                texts_data_test.append(txt)
+                img_data_test.append(img)
+                snd_data_test.append(None)
+                target_test.append(t); category_test.append(c)
+                made += 1
+        # 在庫が完全に尽きたら中断
+        if not avail_unique(oc_list, used_img_global) and not avail_unique(esc_list, used_snd_global):
+            break
 
-    # Two missing modalities in test
-    for _ in range(8):
-        h = random.choice([0, 1, 2])
-        tt = [random.choice([txt_pool[i] for i in test_text_idx])] if h == 0 else [0]
-        it = [random.choice([oc_list[i] for i in test_img_idx])] if h == 1 else [None]
-        st = [random.choice([esc_list[i] for i in test_snd_idx])] if h == 2 else [None]
-        texts_data_test.extend(tt)
-        img_data_test.extend(it)
-        snd_data_test.extend(st)
-        target_test.append(t)
-        category_test.append(c)
+    # ========= Test: Two missing =========
+    attempts = 0
+    made = 0
+    while made < 8 and attempts < 8*4:
+        attempts += 1
+        h = random.choice([0, 1, 2])  # 0:text only, 1:img only, 2:snd only
+        if h == 0:
+            txt = random.choice(txt_pool) if txt_pool else 0
+            texts_data_test.append(txt); img_data_test.append(None); snd_data_test.append(None)
+            target_test.append(t); category_test.append(c)
+            made += 1
+        elif h == 1:
+            ai = avail_unique(oc_list, used_img_global)
+            if ai:
+                img = take_unique(oc_list, used_img_global, 1)[0]
+                texts_data_test.append(0); img_data_test.append(img); snd_data_test.append(None)
+                target_test.append(t); category_test.append(c)
+                made += 1
+        else:
+            asn = avail_unique(esc_list, used_snd_global)
+            if asn:
+                snd = take_unique(esc_list, used_snd_global, 1)[0]
+                texts_data_test.append(0); img_data_test.append(None); snd_data_test.append(snd)
+                target_test.append(t); category_test.append(c)
+                made += 1
+        if not avail_unique(oc_list, used_img_global) and not avail_unique(esc_list, used_snd_global):
+            break
 
-    # Training full triplets
-    train_text = [txt_pool[i] for i in range(len(txt_pool)) if i not in test_text_idx]
-    train_img = [oc_list[i] for i in range(len(oc_list)) if i not in test_img_idx]
-    train_snd = [esc_list[i] for i in range(len(esc_list)) if i not in test_snd_idx]
+    # ========= Train pools（テストで使ったものを除いた在庫から、重複禁止で生成） =========
+    train_text = txt_pool[:]  # テキストは重複許容
+    train_img = avail_unique(oc_list, used_img_global)
+    train_snd = avail_unique(esc_list, used_snd_global)
 
-    if not train_text or not train_img or not train_snd:
-        print(f"[WARN] Not enough training pool for class {ok} ({c}) (txt={len(train_text)}, img={len(train_img)}, snd={len(train_snd)})")
+    if not train_img or not train_snd:
+        print(f"[WARN] Not enough unique training pool for class {ok} ({c}) (img={len(train_img)}, snd={len(train_snd)})")
         t += 1
-        continue  # このクラスはスキップ
-    
-    for _ in range(60):
-        texts_data_train.append(random.choice(train_text))
-        img_data_train.append(random.choice(train_img))
-        snd_data_train.append(random.choice(train_snd))
-        target_train.append(t)
-        category_train.append(c)
+        continue
 
-    # One missing modality in training
-    for _ in range(60):
+    # Train: Full triplets（最大60件、在庫でクリップ）
+    n_train_full = min(60, len(train_img), len(train_snd))
+    pick_img = take_unique(oc_list, used_img_global, n_train_full)
+    pick_snd = take_unique(esc_list, used_snd_global, n_train_full)
+    for i in range(n_train_full):
+        texts_data_train.append(random.choice(train_text) if train_text else 0)
+        img_data_train.append(pick_img[i])
+        snd_data_train.append(pick_snd[i])
+        target_train.append(t); category_train.append(c)
+
+    # Train: One missing（最大60件を目安、在庫が尽きるまで）
+    attempts = 0
+    made = 0
+    while made < 60 and attempts < 60*4:
+        attempts += 1
         m = random.choice([0, 1, 2])
-        tt = [0] if m == 0 else [random.choice(train_text)]
-        it = [None] if m == 1 else [random.choice(train_img)]
-        st = [None] if m == 2 else [random.choice(train_snd)]
-        texts_data_train.extend(tt)
-        img_data_train.extend(it)
-        snd_data_train.extend(st)
-        target_train.append(t)
-        category_train.append(c)
+        if m == 0:
+            ai = avail_unique(oc_list, used_img_global)
+            asn = avail_unique(esc_list, used_snd_global)
+            if ai and asn:
+                img = take_unique(oc_list, used_img_global, 1)[0]
+                snd = take_unique(esc_list, used_snd_global, 1)[0]
+                texts_data_train.append(0); img_data_train.append(img); snd_data_train.append(snd)
+                target_train.append(t); category_train.append(c)
+                made += 1
+        elif m == 1:
+            asn = avail_unique(esc_list, used_snd_global)
+            if asn:
+                txt = random.choice(train_text) if train_text else 0
+                snd = take_unique(esc_list, used_snd_global, 1)[0]
+                texts_data_train.append(txt); img_data_train.append(None); snd_data_train.append(snd)
+                target_train.append(t); category_train.append(c)
+                made += 1
+        else:
+            ai = avail_unique(oc_list, used_img_global)
+            if ai:
+                txt = random.choice(train_text) if train_text else 0
+                img = take_unique(oc_list, used_img_global, 1)[0]
+                texts_data_train.append(txt); img_data_train.append(img); snd_data_train.append(None)
+                target_train.append(t); category_train.append(c)
+                made += 1
+        if not avail_unique(oc_list, used_img_global) and not avail_unique(esc_list, used_snd_global):
+            break
 
-    # Two missing modalities in training
-    for _ in range(60):
+    # Train: Two missing（最大60件を目安、在庫が尽きるまで）
+    attempts = 0
+    made = 0
+    while made < 60 and attempts < 60*4:
+        attempts += 1
         h = random.choice([0, 1, 2])
-        tt = [random.choice(train_text)] if h == 0 else [0]
-        it = [random.choice(train_img)] if h == 1 else [None]
-        st = [random.choice(train_snd)] if h == 2 else [None]
-        texts_data_train.extend(tt)
-        img_data_train.extend(it)
-        snd_data_train.extend(st)
-        target_train.append(t)
-        category_train.append(c)
+        if h == 0:
+            txt = random.choice(train_text) if train_text else 0
+            texts_data_train.append(txt); img_data_train.append(None); snd_data_train.append(None)
+            target_train.append(t); category_train.append(c)
+            made += 1
+        elif h == 1:
+            ai = avail_unique(oc_list, used_img_global)
+            if ai:
+                img = take_unique(oc_list, used_img_global, 1)[0]
+                texts_data_train.append(0); img_data_train.append(img); snd_data_train.append(None)
+                target_train.append(t); category_train.append(c)
+                made += 1
+        else:
+            asn = avail_unique(esc_list, used_snd_global)
+            if asn:
+                snd = take_unique(esc_list, used_snd_global, 1)[0]
+                texts_data_train.append(0); img_data_train.append(None); snd_data_train.append(snd)
+                target_train.append(t); category_train.append(c)
+                made += 1
+        if not avail_unique(oc_list, used_img_global) and not avail_unique(esc_list, used_snd_global):
+            break
 
     t += 1
 
