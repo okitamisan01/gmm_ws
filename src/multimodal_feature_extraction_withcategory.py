@@ -33,7 +33,7 @@ from pathlib import Path
 # 現在のスクリプトがあるフォルダの一つ上のディレクトリを取得
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-FULL = True
+FULL = False
 if FULL:
     dataset_train = pd.read_csv(os.path.join(base_dir, "dataset_full", "dataset_train_full.csv"), index_col=0)
     dataset_test  = pd.read_csv(os.path.join(base_dir, "dataset_full", "dataset_test_full.csv"), index_col=0)
@@ -46,14 +46,14 @@ x_test_snd_path = dataset_test["snd"].values
 x_test_text = dataset_test["text"].values
 y_test = pd.get_dummies(dataset_test["target"]).values  # one-hot エンコーディング
 
-# --- Image
+# --- Image　実行タスク：ここでは画像が存在する場合のみ読み込み、存在しない場合はゼロ画像
 x_test_img = np.zeros((len(x_test_img_path), 299, 299, 3))
 for i, p in enumerate(x_test_img_path):
     if p is not None and isinstance(p, str) and os.path.exists(p):
         x_test_img[i] = np.load(p)["img"]
 x_test_img = x_test_img.astype("float32") / 255.
 
-# --- Sound
+# --- Sound　実行タスク：ここでは音声が存在する場合のみ mel スペクトログラムを計算、存在しない場合はゼロ画像
 # mel スペクトログラム算出（preprocess_audio.py と同様の処理に合わせる）
 def calculate_melsp(x, n_fft=1024, hop_length=128, sr=44100):
     stft = np.abs(librosa.stft(x, n_fft=n_fft, hop_length=hop_length))**2
@@ -122,7 +122,7 @@ for i, mel in enumerate(mel_list):
 
 x_test_snd = x_test_snd.reshape(len(x_test_snd), freq, time_max, 1)
 
-# --- Text
+# --- Text　実行タスク：ここではテキストが存在する場合のみ文字コード化、存在しない場合はゼロベクトル
 txt_length = 200
 def convert_text_to_unicode(s, del_rate=0.001):
     return [ord(x) for x in str(s).strip() if random.random() > del_rate] if s != 0 else [0]
@@ -232,7 +232,7 @@ ari = adjusted_rand_score(y_true, gmm_preds)
 print(f"Adjusted Rand Index (ARI): {ari:.4f}")
 
 # ===== アーティファクト保存 =====
-ARTIFACTS = Path(base_dir) / "artifacts_withcategory"
+ARTIFACTS = Path(base_dir) / "artifacts"
 ARTIFACTS.mkdir(parents=True, exist_ok=True)
 
 # 責務とCSVを保存

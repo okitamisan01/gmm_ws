@@ -1,5 +1,9 @@
 # gmm_ws
 
+以下をクリック
+` https://htmlpreview.github.io/?https://github.com/okitamisan01/gmm_ws/blob/main/artifacts/cluster_gallery.html `
+
+
 ## 説明
 
 参考サイト：https://qiita.com/cvusk/items/bdf51354c171631b554c
@@ -210,8 +214,5 @@ python sample_concept.py --artifacts ~/gmm_ws/artifacts --cluster 2 --per-cluste
 python sample_concept.py --title "GMM Cluster Samples" 
 
 
-カテゴリ数あり：
-file:///home/su-laptop-02-okitani/gmm_ws/artifacts_withcategory/cluster_gallery.html
-
-カテゴリ数なし：
+結果：
 file:///home/su-laptop-02-okitani/gmm_ws/artifacts/cluster_gallery.html
