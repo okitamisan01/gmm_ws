@@ -29,14 +29,15 @@ from tensorflow.keras.losses import categorical_crossentropy
 from pathlib import Path
 # 3D可視化用
 from sklearn.decomposition import PCA
-
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+from matplotlib.lines import Line2D
 # ====================
 # 1. データ読み込み
 # ====================
 # 現在のスクリプトがあるフォルダの一つ上のディレクトリを取得
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-FULL = True
+FULL = False
 if FULL:
     dataset_train = pd.read_csv(os.path.join(base_dir, "dataset_full", "dataset_train_full.csv"), index_col=0)
     dataset_test  = pd.read_csv(os.path.join(base_dir, "dataset_full", "dataset_test_full.csv"), index_col=0)
@@ -312,7 +313,6 @@ try:
         K = gmm.n_components
         cmap = plt.cm.get_cmap('tab20', K)
 
-        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
         fig = plt.figure(figsize=(7,6))
         ax = fig.add_subplot(111, projection='3d')
         sc = ax.scatter(X3[:,0], X3[:,1], X3[:,2], c=gmm_preds, cmap=cmap, s=10, alpha=0.85)
@@ -373,7 +373,6 @@ try:
                 continue
 
         # 凡例
-        from matplotlib.lines import Line2D
         handles = [Line2D([0],[0], marker='o', color='w', label=f'Cluster {i}',
                            markerfacecolor=cmap(i), markersize=6) for i in range(K)]
         ax.legend(handles=handles, title='Clusters', bbox_to_anchor=(1.02, 1), loc='upper left')

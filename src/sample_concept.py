@@ -142,7 +142,11 @@ def main():
         raise FileNotFoundError(f"必要ファイルが見つかりません: {resp_path} / {csv_path}")
 
     resp = np.load(resp_path)                    # (N, K)
-    df = pd.read_csv(csv_path, index_col=0)      # 必須列: img, snd, text
+    # CSVは先頭列に category があり、これをインデックスにせず列として保持する
+    df = pd.read_csv(csv_path)      # 必須列: category, target, img, snd, text
+    # pandasが保存時に付与した自動インデックス列があれば除去
+    if "Unnamed: 0" in df.columns:
+        df = df.drop(columns=["Unnamed: 0"]) 
     if len(df) != resp.shape[0]:
         print(f"[WARN] dataset行数({len(df)}) と resp件数({resp.shape[0]}) が不一致。小さい方に合わせます。")
         N = min(len(df), resp.shape[0])
@@ -191,8 +195,9 @@ def main():
             # 責務の高い順に並べる
             idxs_sorted = idxs[np.argsort(resp[idxs, c])[::-1]]
             pick = idxs_sorted[:min(top, len(idxs_sorted))]
-            # 画像読み込み
+            # 画像読み込み + メタ(カテゴリ/確率)
             imgs = []
+            metas = []  # [(cat_str, p_float), ...]
             for i in pick:
                 p_img = df.iloc[i]["img"]
                 try:
@@ -203,7 +208,12 @@ def main():
                             arr = plt.imread(p_img)
                         if arr.ndim == 2:
                             arr = np.stack([arr]*3, axis=-1)
+                        # メタ情報
+                        cat = df.iloc[i].get("category", "")
+                        cat_str = str(cat).strip() if isinstance(cat, str) else ""
+                        p = float(resp[i, c])
                         imgs.append(arr)
+                        metas.append((cat_str, p))
                 except Exception:
                     pass
             if not imgs:
@@ -219,8 +229,17 @@ def main():
                 ax.axis('off')
             for k, arr in enumerate(imgs):
                 r, c2 = divmod(k, cols)
-                axes[r, c2].imshow(arr.astype(np.uint8))
-                axes[r, c2].axis('off')
+                ax = axes[r, c2]
+                ax.imshow(arr.astype(np.uint8))
+                ax.axis('off')
+                # タイル左上に 元カテゴリのみ をオーバーレイ（確率は表示しない）
+                cat_str, p = metas[k]
+                if cat_str:
+                    label = f"{cat_str}"
+                    ax.text(
+                        4, 12, label, color='white', fontsize=8, ha='left', va='top',
+                        bbox=dict(facecolor='black', alpha=0.4, pad=2, edgecolor='none')
+                    )
             fig.tight_layout(pad=0)
             out_path = out_dir / f"mosaic_c{c}.png"
             fig.savefig(out_path, dpi=160, bbox_inches='tight')
@@ -242,11 +261,15 @@ def main():
             txt_str = str(txt).strip()
             if txt_str == "" or txt_str == "0" or txt_str == "０":
                 continue
-            p = float(resp[i, c])
+            # 元カテゴリ名のみ表示
+            cat = df.iloc[i].get("category", "")
+            cat_str = str(cat).strip() if isinstance(cat, str) else ""
+            cat_html = f"<span class=\"cat\">({html_escape(cat_str)})</span>" if cat_str else ""
+
             txt_short = txt_str
             if len(txt_short) > 160:
                 txt_short = txt_short[:160] + "…"
-            items.append(f"<div class=\"titem\"><span class=\"p\">p={p:.2f}</span> {html_escape(txt_short)}</div>")
+            items.append(f"<div class=\"titem\">{cat_html} {html_escape(txt_short)}</div>")
             count += 1
             if count >= top_n:
                 break
@@ -278,8 +301,14 @@ def main():
                 print(f"[WARN] 音声壁作成失敗 c={c} i={i}: {e}")
                 disp = None
             if disp:
-                p = float(resp[i, c])
-                items.append(f"<div class=\"aitem\"><div class=\"p\">p={p:.2f}</div><audio controls src=\"gallery_assets/{disp}\"></audio></div>")
+                # 元カテゴリ名のみ表示
+                cat = df.iloc[i].get("category", "")
+                cat_str = str(cat).strip() if isinstance(cat, str) else ""
+                cat_html = f"<span class=\"cat\">({html_escape(cat_str)})</span>" if cat_str else ""
+                items.append(
+                    f"<div class=\"aitem\"><div class=\"meta\">{cat_html}</div>"
+                    f"<audio controls src=\"gallery_assets/{disp}\"></audio></div>"
+                )
                 count += 1
                 if count >= top_n:
                     break
@@ -409,10 +438,9 @@ section.cluster h3 {{ margin: 8px 0 8px; font-size: 14px; color: var(--muted); f
   display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; margin: 8px 0 16px;
 }}
 .wall-text .titem {{ background: #0f1318; border: 1px solid var(--border); border-radius: 10px; padding: 8px; font-size: 13px; line-height: 1.5; }}
-.wall-text .titem .p {{ color: var(--muted); font-size: 12px; margin-right: 6px; }}
 .wall-audio {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; margin: 8px 0 16px; }}
 .wall-audio .aitem {{ background: #0f1318; border: 1px solid var(--border); border-radius: 10px; padding: 8px; font-size: 12px; }}
-.wall-audio .aitem .p {{ color: var(--muted); margin-bottom: 4px; }}
+.cat {{ color: var(--muted); margin-left: 6px; font-size: 12px; }}
 footer {{ margin-top: 16px; color: var(--muted); font-size: 12px; }}
 .note {{ color: var(--muted); font-size: 13px; margin: 8px 0 16px; }}
 </style>
